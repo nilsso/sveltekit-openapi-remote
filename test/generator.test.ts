@@ -145,7 +145,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain(
       "import { query, command, form } from '$app/server';",
     );
@@ -164,7 +169,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "$lib/api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "$lib/api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain(
       "import { query, command, form } from '$app/server';",
     );
@@ -183,7 +193,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain("export const getUsers = query(");
     expect(content).toContain(
       "z.custom<GetParameters<paths, '/users', 'get'>>()",
@@ -200,7 +215,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain("export const postUsersCommand = command(");
     expect(content).toContain("export const postUsersForm = form(");
     expect(content).toContain(
@@ -217,7 +237,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain("z.object({");
     expect(content).toContain(
       "z.custom<GetParameters<paths, '/users/{id}', 'patch'>['path']>()",
@@ -241,7 +266,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain("export const deleteUsersByIdCommand = command(");
     expect(content).toContain("export const deleteUsersByIdForm = form(");
   });
@@ -255,7 +285,12 @@ describe("generateFileContent", () => {
         ],
       },
     ];
-    const content = generateFileContent(paths, "./api", "$lib/api/remote");
+    const content = generateFileContent(
+      paths,
+      "./api",
+      "$lib/api/remote",
+      "zod",
+    );
     expect(content).toContain("DO NOT EDIT");
   });
 });
@@ -281,6 +316,7 @@ describe("generateRemoteFiles", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       }),
@@ -306,6 +342,7 @@ describe("generateRemoteFiles", () => {
       output: "/tmp/test",
       typesImport: "./api",
       clientImport: "$lib/api/remote",
+      validator: "zod",
       grouping: "single",
       depth: 1,
     });
@@ -335,6 +372,7 @@ describe("generateRemoteFiles", () => {
       output: "/tmp/test",
       typesImport: "./api",
       clientImport: "$lib/api/remote",
+      validator: "zod",
       grouping: "segment",
       depth: 1,
     });

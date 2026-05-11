@@ -11,10 +11,13 @@ export interface PathInfo {
   }[];
 }
 
+export type Validator = "zod" | "valibot";
+
 export interface GeneratorOptions {
   output: string;
   typesImport: string;
   clientImport: string;
+  validator: Validator;
   grouping: "single" | "segment";
   depth: number;
 }
@@ -169,6 +172,7 @@ export function generateFileContent(
   paths: PathInfo[],
   typesImport: string,
   clientImport: string,
+  validator: Validator,
 ): string {
   const allHandlers = new Set<string>();
   const allTypes = new Set<string>();
@@ -179,15 +183,18 @@ export function generateFileContent(
       if (m === "get") {
         allHandlers.add("handleGetQuery");
         allTypes.add("GetParameters");
+        allTypes.add("GetResponse");
       } else if (m === "delete") {
         allHandlers.add("handleDeleteCommand");
         allHandlers.add("handleDeleteForm");
         allTypes.add("GetParameters");
+        allTypes.add("GetResponse");
       } else {
         const Method = m.charAt(0).toUpperCase() + m.slice(1);
         allHandlers.add(`handle${Method}Command`);
         allHandlers.add(`handle${Method}Form`);
         if (methodInfo.hasParams) allTypes.add("GetParameters");
+        allTypes.add("GetResponse");
         allTypes.add("GetRequestBody");
       }
     }
@@ -197,11 +204,16 @@ export function generateFileContent(
   const typeImportList = Array.from(allTypes).sort();
   const typeImportLine =
     typeImportList.length > 0
-      ? `import { type ${typeImportList.join(", type ")} } from 'sveltekit-openapi-remote';\n`
+      ? `import type { ${typeImportList.join(", ")} } from 'sveltekit-openapi-remote';\n`
       : "";
+  const validatorImportLine =
+    validator === "zod"
+      ? "import { z } from 'zod'"
+      : "import * as v from 'valibot'";
 
-  const imports = `import { query, command, form } from '$app/server';
-import { z } from 'zod';
+  const imports = `\
+import { query, command, form } from '$app/server';
+${validatorImportLine};
 import type { paths } from '${typesImport}';
 ${typeImportLine}import {
   ${handlerImports},
@@ -217,7 +229,12 @@ ${typeImportLine}import {
   for (const pathInfo of paths) {
     for (const methodInfo of pathInfo.methods) {
       functions.push(
-        ...generateFunctionCode(pathInfo.path, methodInfo.method, methodInfo),
+        ...generateFunctionCode(
+          pathInfo.path,
+          methodInfo.method,
+          methodInfo,
+          validator,
+        ),
       );
     }
   }
@@ -225,51 +242,124 @@ ${typeImportLine}import {
   return imports + "\n" + functions.join("\n\n") + "\n";
 }
 
+function generateCustomValidator(type: string, validator: Validator): string {
+  // Single type cast
+  if (validator === "zod") {
+    return `z.custom<${type}>()`;
+  } else {
+    return `v.pipe(v.unknown(), v.transform(v => v as ${type}))`;
+  }
+}
+
+function generateFormValidator(type: string, validator: Validator): string {
+  // Record then cast
+  if (validator === "zod") {
+    return `z.record(z.string(), z.any()).pipe(z.custom<${type}>())`;
+  } else {
+    return `v.pipe(v.record(v.string(), v.any()), v.transform(i => i as ${type}))`;
+  }
+}
+
+function generateObjectValidator(
+  pathType: string,
+  bodyType: string,
+  validator: Validator,
+): string {
+  // Object with path+body
+  if (validator === "zod") {
+    return `z.object({
+      path: z.custom<${pathType}>(),
+      body: z.custom<${bodyType}>()
+    })`;
+  } else {
+    return `v.object({
+      path: v.pipe(v.unknown(), v.transform(i => i as ${pathType})),
+      body: v.pipe(v.unknown(), v.transform(i => i as ${bodyType}))
+    })`;
+  }
+}
+
+function generateFormObjectValidator(
+  pathType: string,
+  bodyType: string,
+  validator: Validator,
+): string {
+  // Form with path+body
+  const type = `{ path: ${pathType}; body: ${bodyType}; }`;
+  return generateFormValidator(type, validator);
+}
+
 function generateFunctionCode(
   pathStr: string,
   method: "get" | "post" | "patch" | "put" | "delete",
   info: PathInfo["methods"][0],
+  validator: Validator,
 ): string[] {
   const codes: string[] = [];
+  const paramsType = `GetParameters<paths, '${pathStr}', '${method}'>`;
+  const responseType = `GetResponse<paths, '${pathStr}', '${method}'>`;
 
   if (method === "get") {
     const funcName = pathToFunctionName(pathStr, method);
-    codes.push(
-      `export const ${funcName} = query(\n\tz.custom<GetParameters<paths, '${pathStr}', 'get'>>(),\n\tasync (params) => handleGetQuery('${pathStr}', params)\n);`,
-    );
+    codes.push(`\
+export const ${funcName} = query(
+  ${generateCustomValidator(paramsType, validator)},
+  async (params) => handleGetQuery('${pathStr}', params) as Promise<${responseType}>
+
+);`);
   } else if (method === "delete") {
     const commandName = pathToFunctionName(pathStr, method, "Command");
     const formName = pathToFunctionName(pathStr, method, "Form");
-    codes.push(
-      `export const ${commandName} = command(\n\tz.custom<GetParameters<paths, '${pathStr}', 'delete'>>(),\n\tasync (params) => handleDeleteCommand('${pathStr}', params)\n);`,
-    );
-    codes.push(
-      `export const ${formName} = form(\n\tz.record(z.string(), z.any()).pipe(z.custom<GetParameters<paths, '${pathStr}', 'delete'>>()),\n\tasync (params) => handleDeleteForm('${pathStr}', params)\n);`,
-    );
+
+    codes.push(`\
+export const ${commandName} = command(
+  ${generateCustomValidator(paramsType, validator)},
+  async (params) => handleDeleteCommand('${pathStr}', params) as Promise<${responseType}>
+);`);
+    codes.push(`\
+export const ${formName} = form(
+  ${generateFormValidator(paramsType, validator)},
+  async (params) => handleDeleteForm('${pathStr}', params) as Promise<${responseType}>
+);`);
   } else if (info.hasParams) {
     const commandName = pathToFunctionName(pathStr, method, "Command");
     const formName = pathToFunctionName(pathStr, method, "Form");
-    const Method = method.charAt(0).toUpperCase() + method.slice(1);
-    const commandHandler = `handle${Method}Command`;
-    const formHandler = `handle${Method}Form`;
-    codes.push(
-      `export const ${commandName} = command(\n\tz.object({\n\t\tpath: z.custom<GetParameters<paths, '${pathStr}', '${method}'>['path']>(),\n\t\tbody: z.custom<GetRequestBody<paths, '${pathStr}', '${method}'>>()\n\t}),\n\tasync (input) => ${commandHandler}('${pathStr}', input)\n);`,
-    );
-    codes.push(
-      `export const ${formName} = form(\n\tz.record(z.string(), z.any()).pipe(z.custom<{ path: GetParameters<paths, '${pathStr}', '${method}'>['path']; body: GetRequestBody<paths, '${pathStr}', '${method}'> }>()),\n\tasync (input) => ${formHandler}('${pathStr}', input)\n);`,
-    );
+    const methodUpper = method.charAt(0).toUpperCase() + method.slice(1);
+    const commandHandler = `handle${methodUpper}Command`;
+    const formHandler = `handle${methodUpper}Form`;
+
+    const pathType = `GetParameters<paths, '${pathStr}', '${method}'>['path']`;
+    const bodyType = `GetRequestBody<paths, '${pathStr}', '${method}'>`;
+
+    codes.push(`\
+export const ${commandName} = command(
+  ${generateObjectValidator(pathType, bodyType, validator)},
+  async (input) => ${commandHandler}('${pathStr}', input) as Promise<${responseType}>
+);`);
+    codes.push(`\
+export const ${formName} = form(
+  ${generateFormObjectValidator(pathType, bodyType, validator)},
+  async (input) => ${formHandler}('${pathStr}', input) as Promise<${responseType}>
+);`);
   } else {
     const commandName = pathToFunctionName(pathStr, method, "Command");
     const formName = pathToFunctionName(pathStr, method, "Form");
-    const Method = method.charAt(0).toUpperCase() + method.slice(1);
-    const commandHandler = `handle${Method}Command`;
-    const formHandler = `handle${Method}Form`;
-    codes.push(
-      `export const ${commandName} = command(\n\tz.custom<GetRequestBody<paths, '${pathStr}', '${method}'>>(),\n\tasync (body) => ${commandHandler}('${pathStr}', body)\n);`,
-    );
-    codes.push(
-      `export const ${formName} = form(\n\tz.record(z.string(), z.any()).pipe(z.custom<GetRequestBody<paths, '${pathStr}', '${method}'>>()),\n\tasync (body) => ${formHandler}('${pathStr}', body)\n);`,
-    );
+    const methodUpper = method.charAt(0).toUpperCase() + method.slice(1);
+    const commandHandler = `handle${methodUpper}Command`;
+    const formHandler = `handle${methodUpper}Form`;
+
+    const requestBodyType = `GetRequestBody<paths, '${pathStr}', '${method}'>`;
+
+    codes.push(`\
+export const ${commandName} = command(
+  ${generateCustomValidator(requestBodyType, validator)},
+  async (body) => ${commandHandler}('${pathStr}', body) as Promise<${responseType}>
+);`);
+    codes.push(`\
+export const ${formName} = form(
+  ${generateFormValidator(requestBodyType, validator)},
+  async (body) => ${formHandler}('${pathStr}', body) as Promise<${responseType}>
+);`);
   }
 
   return codes;
@@ -317,7 +407,12 @@ export function generateRemoteFiles(
   for (const [filename, filePaths] of fileMap.entries()) {
     result.set(
       filename,
-      generateFileContent(filePaths, options.typesImport, options.clientImport),
+      generateFileContent(
+        filePaths,
+        options.typesImport,
+        options.clientImport,
+        options.validator,
+      ),
     );
   }
 

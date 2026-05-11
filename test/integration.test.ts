@@ -75,6 +75,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -91,6 +92,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "single",
         depth: 1,
       });
@@ -103,6 +105,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -134,6 +137,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -156,6 +160,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -177,6 +182,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -196,6 +202,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: "/tmp/test",
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -216,6 +223,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: tmpDir,
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -246,6 +254,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: tmpDir,
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "segment",
         depth: 1,
       });
@@ -257,6 +266,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         output: tmpDir,
         typesImport: "./api",
         clientImport: "$lib/api/remote",
+        validator: "zod",
         grouping: "single",
         depth: 1,
       });
@@ -300,6 +310,8 @@ describe("Integration: Petstore OpenAPI spec", () => {
           output,
           "--client",
           "$lib/api/remote",
+          "--validator",
+          "zod",
         ],
         { encoding: "utf-8" },
       );
@@ -353,6 +365,8 @@ describe("Integration: Petstore OpenAPI spec", () => {
           output,
           "--client",
           "$lib/api/remote",
+          "--validator",
+          "zod",
         ],
         { encoding: "utf-8" },
       );
@@ -380,6 +394,8 @@ describe("Integration: Petstore OpenAPI spec", () => {
           PETSTORE_DTS,
           "--client",
           "$lib/api/remote",
+          "--validator",
+          "zod",
           "--grouping",
           "single",
         ],
@@ -408,6 +424,8 @@ describe("Integration: Petstore OpenAPI spec", () => {
           PETSTORE_DTS,
           "--client",
           "$lib/api/remote",
+          "--validator",
+          "zod",
           "--depth",
           "2",
         ],
@@ -442,6 +460,8 @@ describe("Integration: Petstore OpenAPI spec", () => {
           tmpDir,
           "--client",
           "$lib/api/remote",
+          "--validator",
+          "zod",
         ],
         { encoding: "utf-8" },
       );
@@ -542,7 +562,7 @@ describe("Integration: Petstore OpenAPI spec", () => {
         .join("\n");
 
       // form() calls should use z.record().pipe() pattern, not bare z.custom()
-      const formCalls = allContent.match(/form\(\n\t[^\n]+/g) || [];
+      const formCalls = allContent.match(/form\(\n\s*[^\n]+/g) || [];
       expect(formCalls.length).toBeGreaterThan(0);
       for (const call of formCalls) {
         expect(call).toContain("z.record(z.string(), z.any()).pipe(");

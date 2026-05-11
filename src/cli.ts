@@ -11,6 +11,7 @@ import {
   extractPaths,
   generateRemoteFiles,
   writeRemoteFiles,
+  type Validator,
 } from "./generator.js";
 
 export interface CliArgs {
@@ -19,6 +20,7 @@ export interface CliArgs {
   output: string;
   types?: string;
   client: string;
+  validator: Validator;
   grouping: "single" | "segment";
   depth: number;
   dryRun: boolean;
@@ -62,6 +64,11 @@ export function createProgram(): Command {
     .requiredOption(
       "--client <path>",
       "import path to your initialized handlers file",
+    )
+    .addOption(
+      new Option("--validator <mode>", "validator library")
+        .choices(["zod", "valibot"])
+        .makeOptionMandatory(),
     )
     .addOption(
       new Option("--grouping <mode>", "file output mode")
@@ -108,6 +115,7 @@ export function validateArgs(opts: Record<string, any>): CliArgs {
     output: opts.output!,
     types: opts.types,
     client: opts.client!,
+    validator: opts.validator,
     grouping: opts.grouping as "single" | "segment",
     depth: parseInt(opts.depth ?? "1", 10),
     dryRun: opts.dryRun ?? false,
@@ -207,6 +215,7 @@ async function runGenerate(args: CliArgs): Promise<void> {
     output: args.output,
     typesImport: args.types ?? "./api",
     clientImport: args.client,
+    validator: args.validator,
     grouping: args.grouping,
     depth: args.depth,
   });

@@ -133,6 +133,8 @@ describe("createProgram", () => {
       "out",
       "--client",
       "$lib/api/remote",
+      "--validator",
+      "zod",
     ]);
 
     expect(capturedOpts).toBeDefined();
