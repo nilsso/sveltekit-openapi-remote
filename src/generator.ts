@@ -247,7 +247,7 @@ function generateCustomValidator(type: string, validator: Validator): string {
   if (validator === "zod") {
     return `z.custom<${type}>()`;
   } else {
-    return `v.pipe(v.unknown(), v.transform(v => v as ${type}))`;
+    return `v.custom<${type}>(() => true)`;
   }
 }
 
@@ -273,8 +273,8 @@ function generateObjectValidator(
     })`;
   } else {
     return `v.object({
-      path: v.pipe(v.unknown(), v.transform(i => i as ${pathType})),
-      body: v.pipe(v.unknown(), v.transform(i => i as ${bodyType}))
+      path: v.custom<${pathType}>(() => true),
+      body: v.custom<${bodyType}>(() => true)
     })`;
   }
 }
